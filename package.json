@@ -1,0 +1,39 @@
+{
+  "name": "qldb-audits",
+  "version": "0.0.1",
+  "description": "immutable audit logs powered by QLDB & EventBridge",
+  "main": "index.js",
+  "scripts": {
+    "start": "dotenv -e .env -- serverless offline",
+    "dev": "npm-watch start",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "amazon-qldb-driver-nodejs": "^2.2.0",
+    "jsonwebtoken": "^8.5.1",
+    "jwks-rsa": "^2.0.3"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.852.0",
+    "dotenv-cli": "^4.0.0",
+    "dotenv-quokka-plugin": "^1.0.0",
+    "jest": "^26.6.3",
+    "npm-watch": "^0.7.0",
+    "serverless": "^2.27.1",
+    "serverless-dotenv-plugin": "^3.8.1",
+    "serverless-offline": "^6.8.0",
+    "serverless-offline-aws-eventbridge": "^1.4.1"
+  },
+  "watch": {
+    "start": {
+      "legacyWatch": true,
+      "patterns": [
+        "*.js",
+        "*/*.js",
+        "*/**/*.js"
+      ]
+    }
+  }
+}

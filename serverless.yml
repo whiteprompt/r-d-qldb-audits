@@ -1,0 +1,94 @@
+service: qldb-audits
+frameworkVersion: '2'
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-offline
+  - serverless-offline-aws-eventbridge
+
+custom:
+  serverless-offline:
+    useChildProcesses: true
+  serverless-offline-aws-eventbridge:
+    port: 4010
+    debug: true # flag to show debug messages
+    account: '0000000000000'
+  customEventBusArn: "arn:aws:events:${env:REGION}:${env:ACCOUNT_ID}:event-bus/${env:DEFAULT_EVENT_BUS_NAME}"
+  authorizer:
+    name: authorizer # references the name of the custom authorizer function
+    type: REQUEST
+    resultTtlInSeconds: 0
+    identitySource: method.request.header.Authorization
+    identityValidationExpression: Bearer (.*)
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: 20201221
+
+  iam:
+    role:
+      managedPolicies:
+        - arn:aws:iam::aws:policy/AWSLambda_FullAccess
+      statements:
+        - Effect: Allow
+          Action:
+            - qldb:SendCommand
+          Resource:
+            - { 'Fn::Join': [':', ['arn:aws:qldb', { Ref: 'AWS::Region' }, { Ref: 'AWS::AccountId' }, "ledger/${env:LEDGER_NAME}"]] }
+        - Effect: "Allow"
+          Action:
+            - events:*
+          Resource:
+            - ${self:custom.customEventBusArn}
+
+  stage: ${env:ENVIRONMENT_CODE}
+  profile: ${env:PROFILE}
+  versionFunctions: false
+  region: ${env:REGION}
+
+functions:
+  authorizer:
+    handler: handlers/auth.authorizer
+  auditLogWriter:
+    handler: handlers/audit-log.write
+    events:
+      - eventBridge:
+          eventBus: ${self:custom.customEventBusArn}
+          existing: true
+          pattern:
+            source:
+              - application-name
+            detail-type:
+              - audit.write
+  auditLogReader:
+    handler: handlers/audit-log.read
+    events:
+      - http:
+          authorizer: ${self:custom.authorizer}
+          path: /auditlogs/{entity}/{id}
+          method: GET
+          request:
+            parameters:
+              paths:
+                entity: true
+                id: true
+  logAllEvents:
+    handler: handlers/handler.log
+    events:
+      - eventBridge:
+          eventBus: ${self:custom.customEventBusArn}
+          existing: true
+          pattern:
+            account:
+              - "${env:ACCOUNT_ID}"
+
+resources:
+  Resources:
+    Ledger:
+      Type: AWS::QLDB::Ledger
+      Properties:
+        DeletionProtection: True
+        Name: ${env:LEDGER_NAME}
+        PermissionsMode: ALLOW_ALL
+
